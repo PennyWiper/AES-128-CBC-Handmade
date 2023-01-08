@@ -1,3 +1,4 @@
+//reverse and Inreverse Substitution Box
 const rev_sbox = [
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
@@ -36,21 +37,13 @@ const sbox =   [
 ];
 
 const Rcon = [0x01,0x02,0x04,0x81,0x10,0x20,0x40,0x80,0x1b,0x36];
+//Mix column function 
+//ref link: https://en.wikipedia.org/wiki/Rijndael_MixColumns
 
-let print_ExpandedHex = function (params) {
-
-    for (let i = 0; i < 4; i++) {
-        for (let j = 0; j < 4; j++) {
-            process.stdout.write(params[i][j].toString(16) + ' '); 
-        }
-        process.stdout.write('\n');
-    }
-
-}
 function mix(s) {
     for (let c=0; c<4; c++) {
         const a = new Array(4);  // 'a' is a copy of the current column from 's'
-        const b = new Array(4);  // 'b' is a•{02} in GF(2^8)
+        const b = new Array(4); 
         for (let r=0; r<4; r++) {
             a[r] = s[c][r];
             b[r] = s[c][r]&0x80 ? s[c][r]<<1 ^ 0x011b : s[c][r]<<1;
@@ -90,6 +83,9 @@ function getKey(string) {
     return key
 }
 
+//"converting input message into HEX format so that it can be encrypted/decrypted"
+//If you don't want to or haven't got any plan to use 16 bit characters 
+//you can omit this function and instead use "CharcodeAt().ToString" like I did below part
 function hexconvert(message) {
     let hex = ''
     for (index = 0; index < message.length; index++) {
@@ -115,6 +111,8 @@ function hexconvert(message) {
     }
     return hex
 }
+
+//Very lazy Row shifting function
 let row_shift = function(Array){
     let temp = Array[0][1];
     ///////////////
@@ -194,7 +192,9 @@ let inverse_row = function(Array) {
 
     return Array;
 }
-function KeyExpansion(鍵){
+
+//text: 128 bit / 32 hex String to be expanded
+function KeyExpansion(text){
     var key = new Array(4);
     let count = 0;
     
@@ -204,7 +204,7 @@ function KeyExpansion(鍵){
     for (let i = 0; i < 4; i++) {
         for (let y = 0; y < 4; y++) {
             
-            key[i][y] = parseInt(鍵.substring(count,count+2), 16);
+            key[i][y] = parseInt(text.substring(count,count+2), 16);
             count += 2;
         }
     }
@@ -212,8 +212,8 @@ function KeyExpansion(鍵){
 
     for(let round = 0;round < 10;round++) {
         
-        var temp = new Array (parseInt(鍵.substring(鍵.length - 6,鍵.length - 4), 16),parseInt(鍵.substring(鍵.length - 4,鍵.length - 2), 16),
-                              parseInt(鍵.substring(鍵.length - 2,鍵.length), 16),parseInt(鍵.substring(鍵.length - 8,鍵.length-6), 16)
+        var temp = new Array (parseInt(text.substring(text.length - 6,text.length - 4), 16),parseInt(text.substring(text.length - 4,text.length - 2), 16),
+                              parseInt(text.substring(text.length - 2,text.length), 16),parseInt(text.substring(text.length - 8,text.length-6), 16)
                               );
         // B-)Substitute Table
         for (let index = 0; index < 4; index++) {
@@ -226,17 +226,18 @@ function KeyExpansion(鍵){
             
             for (let j = 0; j < 4; j++) {
                 temp[j] = temp[j] ^ key[i][j];
-                鍵 += (temp[j].toString(16).length === 2) ? temp[j].toString(16) : '0' + temp[j].toString(16);
+                text += (temp[j].toString(16).length === 2) ? temp[j].toString(16) : '0' + temp[j].toString(16);
                 key[i][j] = temp[j];
             }
         }
     }
 
-    return 鍵;
+    return text;
 
 }
-
-function AES_128_Encryption(本文,鍵) {
+//本文: plain text
+//text expanded key
+function AES_128_Encryption(本文,text) {
     /*************************************************************************** */
     var plain = new Array(4);
     for (var i = 0; i < 4; i++) {
@@ -249,7 +250,7 @@ function AES_128_Encryption(本文,鍵) {
             count += 2;
         }
     }
-    let = key = getKey(鍵.substring(0,32));
+    let = key = getKey(text.substring(0,32));
     count = 0;
 
     //Adding round key
@@ -276,7 +277,7 @@ function AES_128_Encryption(本文,鍵) {
             //Mix Column
             plain = mix(plain);
             //*************************************************************************** */
-            key = getKey(鍵.substring(32 * (round+1),32 * (round+2)))
+            key = getKey(text.substring(32 * (round+1),32 * (round+2)))
             //add n'th round key
             for (let i = 0; i < 4; i++) {
                 for (let j = 0; j < 4; j++) {
@@ -298,7 +299,7 @@ function AES_128_Encryption(本文,鍵) {
     plain = row_shift(plain)
     ///////////////////////////////
     //Add last round key
-    key = getKey(鍵.substring(鍵.length - 32,鍵.length));
+    key = getKey(text.substring(text.length - 32,text.length));
     count = 0;
 
     for (let i = 0; i < 4; i++) {
@@ -314,7 +315,7 @@ function AES_128_Encryption(本文,鍵) {
 
 }
 
-function AES_128_Decryption(本文,鍵){
+function AES_128_Decryption(本文,text){
     let count = 0;
     var plain = new Array(4);
     for (var i = 0; i < 4; i++) {
@@ -328,7 +329,7 @@ function AES_128_Decryption(本文,鍵){
     }
     
     // ADD Round Key
-    let key = getKey(鍵.substring(鍵.length - 32,鍵.length))
+    let key = getKey(text.substring(text.length - 32,text.length))
     count = 0;
     for (let i = 0; i < 4; i++) {
         for (let j = 0; j < 4; j++) {
@@ -349,7 +350,7 @@ function AES_128_Decryption(本文,鍵){
     /* LOOP*/
     for (let round = 0; round < 9; round++) {
         console.log("round: " + round)
-        let key = getKey(鍵.substring(鍵.length - (32 * (round+2)) ,鍵.length - (32 * (round+1))))
+        let key = getKey(text.substring(text.length - (32 * (round+2)) ,text.length - (32 * (round+1))))
          //3-)add round key
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
@@ -375,7 +376,7 @@ function AES_128_Decryption(本文,鍵){
         
     }
 
-    key = getKey(鍵.substring(0,32))
+    key = getKey(text.substring(0,32))
     for (let i = 0; i < 4; i++) {
         
         for (let j = 0; j < 4; j++) {
@@ -388,4 +389,5 @@ function AES_128_Decryption(本文,鍵){
     return plainstring(plain)
 }
 
+//random string generator to create encryption key
 const genRanHex = size => [...Array(size)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
